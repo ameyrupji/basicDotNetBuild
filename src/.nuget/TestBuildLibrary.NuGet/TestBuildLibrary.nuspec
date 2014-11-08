@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package>
+  <metadata>
+    <id>TestBuildLibrary</id>
+    <version>1.0.0</version>
+    <authors>ameyrupji@gmail.com</authors>
+    <owners>ameyrupji@gmail.com</owners>
+    <dependencies>
+      <!-- Add dependent assemblies here -->
+      <!-- dependency id="Example.ex" version="1.0.0"/ -->
+    </dependencies>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A short description</description>
+    <releaseNotes>Some Release notes</releaseNotes>
+    <copyright>MIT license</copyright>
+  </metadata>
+</package>
