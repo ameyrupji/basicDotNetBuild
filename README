@@ -1,0 +1,39 @@
+READ ME
+=======
+
+1. 	Enable Nuget Package Restore
+2. 	Add "NAnt Portable" Nuget Package
+3. 	Create a new folder in solution call it "Build"
+4. 	Add Build.bat file and add the follwoing code to it.
+	@ECHO OFF
+	REM A convenience script to avoid having to type "nant.exe /buildfile:{Build_File_Name}.build" every time
+	REM (especially since autocomplete doesn't work after the colon)     
+
+	REM The NuGet.exe is stored in the .nuget folder
+	..\.nuget\Nuget RESTORE ..\{Build_Solution_Name}.sln
+	IF ERRORLEVEL 1 GOTO nugetmissing
+
+	@ECHO ON
+
+	REM The Build file is located in Build\BuildScripts folder
+	..\..\packages\NAnt.Portable.0.92\nant.exe /buildfile:{Build_File_Name}.build %*
+
+	@ECHO OFF
+
+	GOTO end
+
+	:nugetmissing
+	@ECHO Nuget.exe must be available in the machines PATH or in the BuildScripts directory.
+
+	:end
+3. 	Add "NUnit.Runners" Nuget Package 
+4. 	If you have a web projct in your solution change the following lines of you .csproj file
+	<PropertyGroup>
+		<VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+		<VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+	</PropertyGroup>
+   	To: 
+	<PropertyGroup>
+		<VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">12.0</VisualStudioVersion>
+		<VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
+	</PropertyGroup>
