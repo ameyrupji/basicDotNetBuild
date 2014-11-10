@@ -1,0 +1,191 @@
+<?xml version="1.0"?>
+<project name="BuildTest" default="BuildSolution" xmlns="http://nant.sf.net/release/0.92/nant.xsd">
+	<!-- Properties -->
+
+	<!-- MS Build  & MsDeploy properties -->
+	<property name="dot.net.version" overwrite="false" value="v4.0.30319" />
+	<property name="msBuild11Path" value="C:\Windows\Microsoft.NET\Framework\${dot.net.version}\msbuild.EXE"/>
+	<property name="msBuild12Path" value="C:\Program Files (x86)\MSBuild\12.0\Bin\msbuild.exe"/>
+	<property name="msBuildExe" value="${msBuild11Path}" if="${file::exists(msBuild11Path)}" />
+	<property name="msBuildExe" value="${msBuild12Path}" if="${file::exists(msBuild12Path)}" />	
+	<property name="msdeploy.exe" value="C:\Program Files (x86)\IIS\Microsoft Web Deploy V2\msdeploy.exe" />
+	<property name="nant.onsuccess" overwrite="false" value="SolutionBuildSuccess" />
+	<property name="nant.onfailure" overwrite="false" value="SolutionBuildFailure" />
+
+	<!-- Build Properties -->
+	<property name="solutionHomeRelativePath" value="${path::combine(project::get-base-directory(), '..')}" />
+	<property name="solutionHome" value="${path::get-full-path(solutionHomeRelativePath)}" />
+	<property name="solutionFileName" value="BuildTest.sln" />
+	<property name="solutionFile" overwrite="false" value="&quot;${solutionHome}${solutionFileName}&quot;" />
+	<property name="packagesDirectory" overwrite="false" value="${solutionHome}packages" />
+
+	<!-- Build Configuration to use  -->
+	<property name="buildConfiguration" value="Release" unless="${property::exists('buildConfiguration')}" />
+
+	<!-- Testing -->
+	<property name="nunit-runner" value="${packagesDirectory}\NUnit.Runners.2.6.3\tools\nunit-console.exe" />
+	<property name="unitTests" value="${solutionHome}TestBuildLibrary.Tests\bin\${buildConfiguration}\TestBuildLibrary.dll" />
+
+	<!-- NuGet -->
+	<property name="nugetBaseDir" value="${solutionHome}.nuget" />
+	<property name="nugetPackageCopyDestination" value="${solutionHome}.nuget\_nupkg" />
+
+	<!--- Web package specific properties -->
+	<property name="ProductName" value="TestWebApp" />
+	<property name="milestone" value="1.0.0" />
+	<property name="webAppFolderName" value="TestWebApp" />
+	<property name="webAppProjectFileName" value="TestWebApp.csproj" />
+	<property name="webAppProjectPath" value="${solutionHome}${webAppFolderName}\${webAppProjectFileName}" />
+	<property name="buildDirectory" overwrite="false" value="${solutionHome}BuildScripts" />
+	<property name="buildScriptsDirectory" overwrite="false" value="${buildDirectory}" />
+	<property name="webDeployPackagesDirectory" overwrite="false" value="${buildDirectory}\WebDeployPackages" />
+
+	<!-- END: Properties -->
+	<!-- Targets -->
+
+	<!--Build success message-->
+	<target name="SolutionBuildSuccess" >
+		<echo message="Solution build executed successfully" failonerror="false"/>
+	</target>
+
+	<!--Build failure message-->
+	<target name="SolutionBuildFailure">
+		<echo message="Failure in execution of Solution build" failonerror="false"/>
+		<echo message="Solution Home:${solutionHome}" failonerror="false"/>
+	</target>
+
+	  <!-- Common Tasks -->
+	<target name="Build" depends="BuildSolution"/>
+	<target name="Test" depends="RunUnitTests" /><!-- can add extra ading comma -->
+	<target name="CreateNuGetPackages" depends="BuildSolution, CleanPreviousNugetPublish, TestBuildLibrary.NuGet" />
+	<target name="CreateWebDeployPackages" depends="BuildMsDeployPackageForDebug, BuildMsDeployPackageForRelease" />
+
+
+	<!-- CleanEnvironment -->
+	<target name="CleanEnvironment">
+		<exec program="${msBuildExe}">
+			<arg line="${solutionFile}" />
+			<arg line="/p:&quot;Configuration=${buildConfiguration}&quot;" />
+			<arg line="/t:Clean" />
+		</exec>
+		<foreach item="Folder" property="foldername">
+			<in>
+				<items basedir="${solutionHome}">
+					<include name="BuildTest" />
+					<include name="TestBuildLibrary" />
+					<!-- Add additional projects -->
+				</items>
+			</in>
+			<do>
+				<delete dir="${foldername}/bin" />
+			</do>
+		</foreach>
+	</target>
+
+  	<!-- Build Solution-->
+	<target name="BuildSolution" depends="CleanEnvironment">
+		<echo message="Building Solution ${solutionFile}" failonerror="false"/>
+		<exec program="${msBuildExe}">
+			<arg line="${solutionFile}"/>
+			<arg line="/p:&quot;Platform=Any CPU&quot;;Configuration=${buildConfiguration}"/>
+			<arg line="/t:Rebuild" />
+		</exec>
+	</target>
+
+	<!-- Run tests -->
+	<target name="RunUnitTests" depends="BuildSolution">
+		<echo message="Running Unit Test..." />
+	    <exec program="${nunit-runner}" failonerror="true">
+	     	<arg value="${unitTests}" />
+	    </exec>
+	  </target>
+
+	
+	<!-- Clean up all NuGet packages from _nupkg dir -->
+	<target name="CleanPreviousNugetPublish">
+		<delete>
+			<fileset basedir="${solutionHome}.nuget\_nupkg">
+			<include name="*.nupkg" />
+			</fileset>
+		</delete>
+	</target>
+
+	<!-- Clean specified NuGet package -->
+	<target name="CleanSpecifiedNuGetPackage" >
+		<delete>
+			<fileset basedir="${nugetPackageSourceDir}">
+			<include name="*.nupkg" />
+			</fileset>
+		</delete>
+		<echo message="Cleaned up nuget package from source ${nugetPackageSourceDir}" failonerror="false" />
+	</target>
+
+	<!-- NuGet Packages -->
+	<target name="TestBuildLibrary.NuGet">
+		<property name="packageName" value="TestBuildLibrary"/>
+		<property name="packageFolderName" value="TestBuildLibrary.NuGet" overwrite="true"/>
+		<property name="packagePath" value="${nugetBaseDir}\${packageFolderName}" overwrite="true"/>
+		<echo message="Creating NuGet package for ${packageName}" failonerror="false" />
+		<!-- Create placeholder folder(s) for the files that will go into the NuGet Package -->
+		<delete dir="${packagePath}\lib" />
+		<mkdir dir="${packagePath}\lib\Net45" failonerror="false" />
+		<delete dir="${packagePath}\content" failonerror="false" />
+		<!-- Copy files that will need to be added as Reference libraries in the target project -->
+		<echo message="Copying files FROM ${solutionHome}${packageName}\bin\${buildConfiguration}" />
+		<echo message="Copying files TO ${packagePath}\lib\Net45" />
+		<copy todir="${packagePath}\lib\Net45">
+		  <fileset basedir="${solutionHome}${packageName}\bin\${buildConfiguration}/">
+		    <include name="TestBuildLibrary.dll" />
+		    <!-- You can use the fomat like Test.*.dll also if you want to add more than one dll -->
+		  </fileset>
+		</copy>
+		<!-- Copy additional dlls if required as content  -->
+		<!-- copy todir="${packagePath}\content" file="${solutionHome}MDM.Migrations.Utils\bin\${buildConfiguration}\MDM.Migrations.Utils.dll"/ -->
+		<!-- Build package -->
+		<echo message="NuGetBaseDir: ${nugetBaseDir}" />
+		<echo message="PackagePath: ${packagePath}" />
+		<exec program="NuGet.exe" basedir="${nugetBaseDir}" workingdir="${packagePath}">
+		  <arg value="pack" />
+		  <arg value="${packageName}.nuspec" />
+		</exec>
+		<!-- Copy package to _nupkg dir -->
+		<copy todir="${nugetPackageCopyDestination}">
+		  <fileset basedir="${packagePath}">
+		    <include name="*.nupkg" />
+		  </fileset>
+		</copy>
+		<echo message="Copied ${packageName} nupkg to ${nugetPackageCopyDestination} " failonerror="false" />
+		 <!--Delete the .nupkg file from the source--> 
+		<property name="nugetPackageSourceDir" value="${packagePath}"/>
+		<call target="CleanSpecifiedNuGetPackage" />
+	</target>
+
+	<!-- Build MsDeploy Package Base-->
+	<target name="BuildMsDeployPackageBase">
+		<property name="_stem" overwrite="true" value="${webDeployPackagesDirectory}\${buildConfiguration}\${ProductName}_${milestone}" />
+		<call target="BuildSolution" />
+		<mkdir dir="${webDeployPackagesDirectory}" failonerror="false" />
+		<exec program="${msBuildExe}" workingdir="${webDeployPackagesDirectory}" verbose="true">
+			<arg value="${webAppProjectPath}" />
+			<arg value="/T:Package" />
+			<arg value="/P:Configuration=${buildConfiguration};Platform=AnyCPU;PackageLocation=&quot;${_stem}.zip&quot;" />
+		</exec>
+		<xmlpoke file="${_stem}.SetParameters.xml"
+		     xpath="/parameters/setParameter[@name='IIS Web Application Name']/@value"
+		     value="Default Web Site/${webAppFolderName}" />
+	</target>
+
+	<!-- BuildMsDeployPackage.Debug -->
+	<target name="BuildMsDeployPackageForDebug">
+		<property name="buildConfiguration" overwrite="true" value="Debug" />
+		<call target="BuildMsDeployPackageBase" />
+	</target>
+
+	<!-- BuildMsDeployPackage.Release -->
+	<target name="BuildMsDeployPackageForRelease">
+		<property name="buildConfiguration" overwrite="true" value="Release" />
+		<call target="BuildMsDeployPackageBase" />
+	</target>
+
+	<!-- END: Targets -->
+</project>
