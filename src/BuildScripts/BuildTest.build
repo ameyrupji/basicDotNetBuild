@@ -140,7 +140,7 @@
 		  </fileset>
 		</copy>
 		<!-- Copy additional dlls if required as content  -->
-		<!-- copy todir="${packagePath}\content" file="${solutionHome}MDM.Migrations.Utils\bin\${buildConfiguration}\MDM.Migrations.Utils.dll"/ -->
+		<!-- copy todir="${packagePath}\content" file="${solutionHome}ProjectName\bin\${buildConfiguration}\dllName.dll"/ -->
 		<!-- Build package -->
 		<echo message="NuGetBaseDir: ${nugetBaseDir}" />
 		<echo message="PackagePath: ${packagePath}" />
